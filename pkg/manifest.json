@@ -1,0 +1,15 @@
+[
+    {
+        "process_name": "kinode_mnist",
+        "process_wasm_path": "/kinode_mnist.wasm",
+        "on_exit": "None",
+        "request_networking": true,
+        "request_capabilities": [
+            "http_server:distro:sys",
+            "ml:ml:sys",
+            "net:distro:sys"
+        ],
+        "grant_capabilities": [],
+        "public": true
+    }
+]
