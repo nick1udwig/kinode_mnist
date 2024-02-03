@@ -1,10 +1,7 @@
-//use image::Pixel;
-
-use kinode_process_lib::{await_message, call_init, println, Address, LazyLoadBlob, Message, Request, Response};
+use kinode_process_lib::{call_init, get_blob, println, Address, LazyLoadBlob, Request};
 
 mod ml_types;
-
-use ml_types::{KinodeMlLibrary, KinodeMlDataType, KinodeMlRequest};
+use ml_types::{KinodeMlLibrary, KinodeMlDataType, KinodeMlRequest, KinodeMlResponse};
 
 wit_bindgen::generate!({
     path: "wit",
@@ -17,49 +14,22 @@ wit_bindgen::generate!({
 const MODEL: &[u8] = include_bytes!("./TFKeras.h5");
 const DATA: &[u8] = include_bytes!("./test3.png");
 
-fn handle_message(_our: &Address) -> anyhow::Result<()> {
-    let message = await_message()?;
-
-    match message {
-        Message::Response { .. } => {
-            return Err(anyhow::anyhow!("unexpected Response: {:?}", message));
-        }
-        Message::Request {
-            ref body,
-            ..
-        } => {
-            let body: serde_json::Value = serde_json::from_slice(body)?;
-            println!("kinode_mnist: got {body:?}");
-            Response::new()
-                .body(serde_json::to_vec(&serde_json::json!("Ack")).unwrap())
-                .send()
-                .unwrap();
-        }
-    }
-    Ok(())
-}
-
 call_init!(init);
 
-fn init(our: Address) {
+fn init(_our: Address) {
     println!("kinode_mnist: begin");
 
-    let data = image::load_from_memory_with_format(DATA, image::ImageFormat::Png).unwrap();
-    let data = data.to_luma8();
-    println!("{:?}", data);
-    //let data = match data {
-    //    image::DynamicImage::ImageLuma8(data) => data,
-    //    image::DynamicImage::ImageRgb8(data) => data.convert(),
-    //    _ => panic!("a"),
-    //};
-    let data = data
+    let input = image::load_from_memory_with_format(DATA, image::ImageFormat::Png)
+        .unwrap()
+        .to_luma8()
         .into_raw()
         .iter()
-        .map(|p| *p as f32 / 255.0)
+        .map(|&p| !p)
+        .map(|p| p as f32 / 255.0)
         .flat_map(|p| p.to_ne_bytes().to_vec())
         .collect();
 
-    Request::new()
+    let _response = Request::new()
         .target("our@ml:ml:sys".parse::<Address>().unwrap())
         .body(serde_json::to_vec(&serde_json::json!("Run")).unwrap())
         .blob(LazyLoadBlob {
@@ -69,20 +39,37 @@ fn init(our: Address) {
                 data_shape: vec![1, 784],
                 data_type: KinodeMlDataType::Float32,
                 model_bytes: MODEL.to_vec(),
-                data_bytes: data,
+                data_bytes: input,
             }).unwrap(),
         })
-        .expects_response(15)
-        //.inherit(true)
-        .send()
+        .send_and_await_response(15)
         .unwrap();
 
-    loop {
-        match handle_message(&our) {
-            Ok(()) => {}
-            Err(e) => {
-                println!("kinode_mnist: error: {:?}", e);
-            }
-        };
-    }
+    let Some(LazyLoadBlob { ref bytes, .. }) = get_blob() else {
+        panic!("a");
+    };
+    let KinodeMlResponse { library, data_shape, data_type, data_bytes } = rmp_serde::from_slice(bytes).unwrap() else {
+        panic!("b");
+    };
+    let output: Vec<f32> = data_bytes.chunks(4)
+        .map(|chunk| {
+            let arr = [chunk[0], chunk[1], chunk[2], chunk[3]];
+            f32::from_le_bytes(arr)
+        })
+        .collect();
+    let prediction = output.iter()
+        .enumerate()
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+        .map(|(index, _)| index)
+        .unwrap();
+    // println!(
+    //     "library: {:?}\n\rdata_shape: {:?}\n\rdata_type: {:?}\n\rdata_bytes: {:?}\n\routput: {:?}\r\nthe given number was: {}",
+    //     library,
+    //     data_shape,
+    //     data_type,
+    //     data_bytes,
+    //     output,
+    //     prediction,
+    // );
+    println!("output: {:?}\n\rthe given number was: {}", output, prediction);
 }
