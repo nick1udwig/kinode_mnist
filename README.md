@@ -2,6 +2,8 @@
 
 Proof-of-concept of [kinode-ml](https://github.com/hosted-fornet/kinode-ml) using MNIST with a Keras backend.
 
+https://twitter.com/nick1udwig/status/1753936773254983813
+
 ## Usage
 
 Start `kinode-ml`.
