@@ -11,8 +11,10 @@ wit_bindgen::generate!({
     },
 });
 
-const MODEL: &[u8] = include_bytes!("./TFKeras.h5");
-const DATA: &[u8] = include_bytes!("./test3.png");
+const MODEL: &[u8] = include_bytes!("./vgg16.h5");
+const DATA: &[u8] = include_bytes!("./d07.png");
+//const MODEL: &[u8] = include_bytes!("./TFKeras.h5");
+//const DATA: &[u8] = include_bytes!("./test3.png");
 
 call_init!(init);
 
@@ -21,11 +23,10 @@ fn init(_our: Address) {
 
     let input = image::load_from_memory_with_format(DATA, image::ImageFormat::Png)
         .unwrap()
-        .to_luma8()
-        .into_raw()
+        .resize_exact(224, 224, image::imageops::FilterType::Lanczos3)
+        .into_rgb8()
         .iter()
-        .map(|&p| !p)
-        .map(|p| p as f32 / 255.0)
+        .map(|p| *p as f32 / 255.0)
         .flat_map(|p| p.to_ne_bytes().to_vec())
         .collect();
 
@@ -36,13 +37,14 @@ fn init(_our: Address) {
             mime: None,
             bytes: rmp_serde::to_vec_named(&KinodeMlRequest {
                 library: KinodeMlLibrary::Keras,
-                data_shape: vec![1, 784],
+                data_shape: vec![1, 224, 224, 3],
                 data_type: KinodeMlDataType::Float32,
                 model_bytes: MODEL.to_vec(),
                 data_bytes: input,
             }).unwrap(),
         })
-        .send_and_await_response(15)
+        .send_and_await_response(60)
+        //.send_and_await_response(15)
         .unwrap();
 
     let Some(LazyLoadBlob { ref bytes, .. }) = get_blob() else {
@@ -71,5 +73,5 @@ fn init(_our: Address) {
     //     output,
     //     prediction,
     // );
-    println!("output: {:?}\n\rthe given number was: {}", output, prediction);
+    println!("output: {:?}\r", output);
 }
