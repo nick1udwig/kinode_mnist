@@ -1,5 +1,7 @@
 # kinode_mnist
 
+NOTE: THIS REPO HAS BEEN SUPERSEDED BY SCRIPTS WITHIN THE [kinode-ml](https://github.com/hosted-fornet/kinode-ml) REPO
+
 Proof-of-concept of [kinode-ml](https://github.com/hosted-fornet/kinode-ml) using MNIST with a Keras backend.
 
 https://twitter.com/nick1udwig/status/1753936773254983813
