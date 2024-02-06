@@ -1,7 +1,7 @@
 use kinode_process_lib::{call_init, get_blob, println, Address, LazyLoadBlob, Request};
 
 mod ml_types;
-use ml_types::{KinodeMlLibrary, KinodeMlDataType, KinodeMlRequest, KinodeMlResponse};
+use ml_types::{KinodeMlLibrary, KinodeMlDataType, KinodeMlRequest, KinodeMlResponse, Model};
 
 wit_bindgen::generate!({
     path: "wit",
@@ -11,7 +11,7 @@ wit_bindgen::generate!({
     },
 });
 
-const MODEL: &[u8] = include_bytes!("./vgg16.h5");
+//const MODEL: &[u8] = include_bytes!("./vgg16.h5");
 const DATA: &[u8] = include_bytes!("./d07.png");
 //const MODEL: &[u8] = include_bytes!("./TFKeras.h5");
 //const DATA: &[u8] = include_bytes!("./test3.png");
@@ -39,12 +39,12 @@ fn init(_our: Address) {
                 library: KinodeMlLibrary::Keras,
                 data_shape: vec![1, 224, 224, 3],
                 data_type: KinodeMlDataType::Float32,
-                model_bytes: MODEL.to_vec(),
+                model: Model::Name("vgg16".to_string()),
+                //model: Model::Bytes(MODEL.to_vec()),
                 data_bytes: input,
             }).unwrap(),
         })
-        .send_and_await_response(60)
-        //.send_and_await_response(15)
+        .send_and_await_response(15)
         .unwrap();
 
     let Some(LazyLoadBlob { ref bytes, .. }) = get_blob() else {
